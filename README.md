@@ -27,8 +27,8 @@ unzip zipped weights and place them to `models/resnet_model1/`, `models/resnet_m
 Run `src/preprocess.py`.  
 Run `src/train_model1.py`.   
 Run `src/get_pseudo_label.py`.   
-Run `src/train_model2.py` . 
-Run `src/train_model3.py` . 
+Run `src/train_model2.py` .  
+Run `src/train_model3.py` .  
 Run `src/train_model4_0.py`.  
 Run `src/train_model4.py`.  
 Run `src/train_model5.py`.  
