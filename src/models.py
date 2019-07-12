@@ -62,6 +62,22 @@ class ResNet(nn.Module):
 
         return x
 
+    def noisy(self, input):
+        bs, ch, h, w = input.size()
+        x0 = self.conv1(input)
+        x0 = self.bn1(x0)
+        x0 = self.relu(x0)
+        x1 = self.maxpool(x0)
+        x1 = self.layer1(x1)
+        x2 = self.layer2(x1)
+        x3 = self.layer3(x2)
+        x4 = self.layer4(x3)
+        x = self.gmp(x4).view(bs, -1)
+        x = self.last_linear2(x)
+
+        return x
+
+
 
 class ConvBnRelu(nn.Module):
     def __init__(self, in_channel, out_channel, kernel_size, stride=1, padding=0, dilation=1,
@@ -138,4 +154,25 @@ class EnvNetv2(nn.Module):
         h = self.gmp(h)
         h = self.flatten(h)
         h = self.last_linear1(h)
+        return h
+
+    def noisy(self, input):
+        h = self.conv1(input)
+        h = self.conv2(h)
+        h = self.maxpool1(h)
+        h = h.transpose(1, 2)
+        h = self.conv3(h)
+        h = self.conv4(h)
+        h = self.maxpool2(h)
+        h = self.conv5(h)
+        h = self.conv6(h)
+        h = self.maxpool3(h)
+        h = self.conv7(h)
+        h = self.conv8(h)
+        h = self.maxpool3(h)
+        h = self.conv9(h)
+        h = self.conv10(h)
+        h = self.gmp(h)
+        h = self.flatten(h)
+        h = self.last_linear2(h)
         return h

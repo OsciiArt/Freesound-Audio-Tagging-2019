@@ -12,20 +12,22 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 sys.path.append('.')
-from utils import AverageMeter, cycle, CosineLR, MelDataset, calculate_per_class_lwlrap
-from models import ResNet
+from utils import AverageMeter, cycle, CosineLR, WaveDataset, calculate_per_class_lwlrap
+from models import EnvNetv2
 
 # set parameters
 NUM_FOLD = 5
 NUM_CLASS = 80
 SEED = 42
-NUM_EPOCH = 64*8
-NUM_CYCLE = 64
+NUM_EPOCH =4 #80*3
+NUM_CYCLE = 2 #80
 BATCH_SIZE = 64
-LR = [1e-3, 1e-6]
+LR = [1e-1, 1e-6]
 FOLD_LIST = [1, 2, 3, 4, 5]
-CROP_LENGTH = 512
-OUTPUT_DIR = "../models/resnet_model1"
+FOLD_LIST = [1, 2,]
+CROP_LENGTH = 133300
+LOAD_DIR = "../models/envnet_model4_0"
+OUTPUT_DIR = "../models/envnet_model4"
 
 cudnn.benchmark = True
 starttime = time.time()
@@ -41,9 +43,9 @@ def main():
         df_train[label] = df_train['labels'].apply(lambda x: label in x)
         df_noisy[label] = df_noisy['labels'].apply(lambda x: label in x)
 
-    df_train['path'] = "../input/mel128/train/" + df_train['fname']
-    df_test['path'] = "../input/mel128/test/" + df_train['fname']
-    df_noisy['path'] = "../input/mel128/noisy/" + df_noisy['fname']
+    df_train['path'] = "../input/train_curated/" + df_train['fname']
+    df_test['path'] = "../input/test/" + df_train['fname']
+    df_noisy['path'] = "../input/train_noisy/" + df_noisy['fname']
 
     # fold splitting
     folds = list(KFold(n_splits=NUM_FOLD, shuffle=True, random_state=SEED).split(np.arange(len(df_train))))
@@ -56,27 +58,28 @@ def main():
         train_log = pd.DataFrame(columns=log_columns)
 
         # build model
-        model = ResNet(NUM_CLASS).cuda()
+        model = EnvNetv2(NUM_CLASS).cuda()
+        # model.load_state_dict(torch.load("{}/weight_fold_{}_epoch_400.pth".format(LOAD_DIR, fold+1)))
 
         # prepare data loaders
         df_train_fold = df_train.iloc[ids_train_split].reset_index(drop=True)
-        dataset_train = MelDataset(df_train_fold['path'], df_train_fold[labels].values,
-                                    crop=CROP_LENGTH, crop_mode='random',
-                                    mixup=True, freqmask=True, gain=True,
+        dataset_train = WaveDataset(df_train_fold['path'], df_train_fold[labels].values,
+                                    crop=CROP_LENGTH, crop_mode='random', padding=CROP_LENGTH//2,
+                                    mixup=True, scaling=1.25, gain=6,
                                     )
         train_loader = DataLoader(dataset_train, batch_size=BATCH_SIZE,
                                   shuffle=True, num_workers=1, pin_memory=True,
                                   )
 
         df_valid = df_train.iloc[ids_valid_split].reset_index(drop=True)
-        dataset_valid = MelDataset(df_valid['path'], df_valid[labels].values,)
+        dataset_valid = WaveDataset(df_valid['path'], df_valid[labels].values, padding=CROP_LENGTH//2)
         valid_loader = DataLoader(dataset_valid, batch_size=1,
                                   shuffle=False, num_workers=1, pin_memory=True,
                                   )
 
-        dataset_noisy = MelDataset(df_noisy['path'], df_noisy[labels].values,
-                                    crop=CROP_LENGTH, crop_mode='random',
-                                    mixup=True, freqmask=True, gain=True,
+        dataset_noisy = WaveDataset(df_noisy['path'], df_noisy[labels].values,
+                                    crop=CROP_LENGTH, crop_mode='random', padding=CROP_LENGTH//2,
+                                    mixup=True, scaling=1.25, gain=6,
                                    )
         noisy_loader = DataLoader(dataset_noisy, batch_size=BATCH_SIZE,
                                   shuffle=True, num_workers=1, pin_memory=True,
@@ -84,7 +87,7 @@ def main():
         noisy_itr = cycle(noisy_loader)
 
         # set optimizer and loss
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LR[0])
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=LR[0],momentum = 0.9,nesterov = True)
         scheduler = CosineLR(optimizer, step_size_min=LR[1], t0=len(train_loader) * NUM_CYCLE, tmult=1)
 
         # training
@@ -143,7 +146,7 @@ def train(train_loaders, model, optimizer, scheduler, epoch):
 
         # compute output
         output = model(input)
-        bce = criterion_bce(output, target)
+        bce = criterion_bce(sigmoid(output), target)
         output_noisy = model.noisy(input_noisy)
         bce_noisy = criterion_bce(sigmoid(output_noisy), target_noisy)
         loss = bce + bce_noisy
@@ -177,7 +180,7 @@ def train(train_loaders, model, optimizer, scheduler, epoch):
 
 def validate(val_loader, model):
     bce_avr = AverageMeter()
-    sigmoid = torch.nn.Sigmoid().cuda()
+    sigmoid = nn.Sigmoid().cuda()
     criterion_bce = nn.BCEWithLogitsLoss().cuda()
 
     # switch to eval mode
@@ -194,7 +197,7 @@ def validate(val_loader, model):
         # compute output
         with torch.no_grad():
             output = model(input)
-            bce = criterion_bce(output, target)
+            bce = criterion_bce(sigmoid(output), target)
             pred = sigmoid(output)
             pred = pred.data.cpu().numpy()
 

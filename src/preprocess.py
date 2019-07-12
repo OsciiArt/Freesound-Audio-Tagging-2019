@@ -16,8 +16,8 @@ starttime = time.time()
 
 def convert(df, input_dir, output_dir):
     for i in range(len(df)):
-        if (i+1)%100==0: print("{}/{}, sec: {:.1f}".format(i+1, len(df), time.time()-startime))
-        file_path = "{}/{}".format(dir, df['fname'][i])
+        if (i+1)%100==0: print("{}/{}, sec: {:.1f}".format(i+1, len(df), time.time()-starttime))
+        file_path = "{}/{}".format(input_dir, df['fname'][i])
         data, _ = librosa.core.load(file_path, sr=SAMPLE_RATE, res_type="kaiser_fast")
         data = librosa.feature.melspectrogram(
             data,

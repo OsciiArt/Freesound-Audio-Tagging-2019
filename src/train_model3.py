@@ -24,8 +24,8 @@ NUM_CYCLE = 64
 BATCH_SIZE = 64
 LR = [1e-3, 1e-6]
 FOLD_LIST = [1, 2, 3, 4, 5]
-CROP_LENGTH = 512
-OUTPUT_DIR = "../models/resnet_model1"
+CROP_LENGTH = 1024
+OUTPUT_DIR = "../models/resnet_model3"
 
 cudnn.benchmark = True
 starttime = time.time()
