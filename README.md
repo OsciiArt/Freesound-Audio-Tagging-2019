@@ -16,6 +16,7 @@ https://www.kaggle.com/c/freesound-audio-tagging-2019/discussion/96440
 - librosa (0.6.3)
 - sci-kit learn (0.21.2)
 - scipy (1.2.1)
+- pretrainedmodels (0.7.4)
 
 Download the [dataset](https://www.kaggle.com/c/freesound-audio-tagging-2019/data) 
 and place them in `input/`.  
